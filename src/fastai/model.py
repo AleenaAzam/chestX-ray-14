@@ -50,7 +50,7 @@ class Stepper():
         output = self.m(*xs)
         if isinstance(output,tuple): output,*xtra = output
         if self.fp16: self.m.zero_grad()
-        else: self.opt.zero_grad()
+        else: self.opt.zero_grad() 
         loss = raw_loss = self.crit(output, y)
         if self.loss_scale != 1: assert(self.fp16); loss = loss*self.loss_scale
         if self.reg_fn: loss = self.reg_fn(output, xtra, raw_loss)
@@ -61,14 +61,14 @@ class Stepper():
         if self.clip:   # Gradient clipping
             if IS_TORCH_04: nn.utils.clip_grad_norm_(trainable_params_(self.m), self.clip)
             else:           nn.utils.clip_grad_norm(trainable_params_(self.m), self.clip)
-        if 'wd' in self.opt.param_groups[0] and self.opt.param_groups[0]['wd'] != 0:
+        if 'wd' in self.opt.param_groups[0] and self.opt.param_groups[0]['wd'] != 0: 
             #Weight decay out of the loss. After the gradient computation but before the step.
             for group in self.opt.param_groups:
                 lr, wd = group['lr'], group['wd']
                 for p in group['params']:
                     if p.grad is not None: p.data = p.data.add(-wd * lr, p.data)
         self.opt.step()
-        if self.fp16:
+        if self.fp16: 
             copy_fp32_to_model(self.m, self.fp32_params)
             torch.cuda.synchronize()
         return torch_item(raw_loss.data)
@@ -93,7 +93,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
        model (model): any pytorch module
            net = to_gpu(net)
        data (ModelData): see ModelData class and subclasses (can be a list)
-       opts: an optimizer. Example: optim.Adam.
+       opts: an optimizer. Example: optim.Adam. 
        If n_epochs is a list, it needs to be the layer_optimizer to get the optimizer as it changes.
        n_epochs(int or list): number of epochs (or list of number of epochs)
        crit: loss function to optimize. Example: F.cross_entropy
@@ -168,7 +168,7 @@ def fit(model, data, n_epochs, opt, crit, metrics=None, callbacks=None, stepper=
                     swa_vals = validate(swa_stepper, cur_data.val_dl, metrics, epoch, validate_skip = validate_skip)
                     vals += swa_vals
 
-            if epoch > 0:
+            if epoch > 0: 
                 print_stats(epoch, [debias_loss] + vals, visualize, prev_val)
             else:
                 print(layout.format(*names))
@@ -189,10 +189,10 @@ def print_stats(epoch, values, visualize, prev_val=[], decimals=6):
     values = [epoch] + list(np.round(values, decimals))
     sym = ""
     if visualize:
-        if epoch == 0:                                             pass
+        if epoch == 0:                                             pass        
         elif values[1] > prev_val[0] and values[2] > prev_val[1]:  sym = " △ △"
-        elif values[1] > prev_val[0] and values[2] < prev_val[1]:  sym = " △ ▼"
-        elif values[1] < prev_val[0] and values[2] > prev_val[1]:  sym = " ▼ △"
+        elif values[1] > prev_val[0] and values[2] < prev_val[1]:  sym = " △ ▼"            
+        elif values[1] < prev_val[0] and values[2] > prev_val[1]:  sym = " ▼ △"            
         elif values[1] < prev_val[0] and values[2] < prev_val[1]:  sym = " ▼ ▼"
     print(layout.format(*values) + sym)
 
@@ -217,8 +217,7 @@ def validate_next(stepper, metrics, val_iter):
     stepper.reset(False)
     with no_grad_context():
         (*x,y) = val_iter.next()
-        y = VV(y) # move y to gpu first (or error in metrics step)
-        preds,l = stepper.evaluate(VV(x), y)
+        preds,l = stepper.evaluate(VV(x), VV(y))
         res = [delistify(to_np(l))]
         res += [f(datafy(preds), datafy(y)) for f in metrics]
     stepper.reset(True)
@@ -228,41 +227,19 @@ def batch_sz(x, seq_first=False):
     if is_listy(x): x = x[0]
     return x.shape[1 if seq_first else 0]
 
-# def validate(stepper, dl, metrics, epoch, seq_first=False, validate_skip = 0):
-#     if epoch < validate_skip: return [float('nan')] + [float('nan')] * len(metrics)
-#     batch_cnts,loss,res = [],[],[]
-#     stepper.reset(False)
-
-#     with no_grad_context():
-#         t = tqdm(iter(dl), leave=False, total=len(dl), miniters=0, desc='Validation')
-#         for (*x,y) in t:
-#             y = VV(y)
-#             preds, l = stepper.evaluate(VV(x), y)
-#             batch_cnts.append(batch_sz(x, seq_first=seq_first))
-#             loss.append(to_np(l))
-#             res.append([to_np(f(datafy(preds), datafy(y))) for f in metrics])
-#     return [np.average(loss, 0, weights=batch_cnts)] + list(np.average(np.stack(res), 0, weights=batch_cnts))
-
 def validate(stepper, dl, metrics, epoch, seq_first=False, validate_skip = 0):
-    # validate and evaluate at the end
     if epoch < validate_skip: return [float('nan')] + [float('nan')] * len(metrics)
     batch_cnts,loss,res = [],[],[]
     stepper.reset(False)
-    targets, predicts = [], []
-
     with no_grad_context():
         t = tqdm(iter(dl), leave=False, total=len(dl), miniters=0, desc='Validation')
         for (*x,y) in t:
             y = VV(y)
             preds, l = stepper.evaluate(VV(x), y)
             batch_cnts.append(batch_sz(x, seq_first=seq_first))
-            targets.append(y.cpu()) # not enough cuda memory, so move to cpu
-            predicts.append(preds.cpu())
             loss.append(to_np(l))
-
-    predicts = torch.cat(predicts)
-    targets = torch.cat(targets)
-    return [np.average(loss, 0, weights=batch_cnts)] + list([to_np(f(predicts, targets)) for f in metrics])
+            res.append([to_np(f(datafy(preds), datafy(y))) for f in metrics])
+    return [np.average(loss, 0, weights=batch_cnts)] + list(np.average(np.stack(res), 0, weights=batch_cnts))
 
 def get_prediction(x):
     if is_listy(x): x=x[0]

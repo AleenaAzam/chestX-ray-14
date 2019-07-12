@@ -59,11 +59,11 @@ class Learner():
     def summary(self): return model_summary(self.model, [torch.rand(3, 3, self.data.sz,self.data.sz)])
 
     def __repr__(self): return self.model.__repr__()
-
-    def lsuv_init(self, needed_std=1.0, std_tol=0.1, max_attempts=10, do_orthonorm=False):
+    
+    def lsuv_init(self, needed_std=1.0, std_tol=0.1, max_attempts=10, do_orthonorm=False):         
         x = V(next(iter(self.data.trn_dl))[0])
         self.models.model=apply_lsuv_init(self.model, x, needed_std=needed_std, std_tol=std_tol,
-                            max_attempts=max_attempts, do_orthonorm=do_orthonorm,
+                            max_attempts=max_attempts, do_orthonorm=do_orthonorm, 
                             cuda=USE_GPU and torch.cuda.is_available())
 
     def set_bn_freeze(self, m, do_freeze):
@@ -81,13 +81,13 @@ class Learner():
         c=self.get_layer_groups()
         for l in c: set_trainable(l, False)
         set_trainable(c[n], True)
-
+        
     def freeze_groups(self, groups):
         c = self.get_layer_groups()
         self.unfreeze()
         for g in groups:
             set_trainable(c[g], False)
-
+            
     def unfreeze_groups(self, groups):
         c = self.get_layer_groups()
         for g in groups:
@@ -96,12 +96,12 @@ class Learner():
     def unfreeze(self): self.freeze_to(0)
 
     def get_model_path(self, name): return os.path.join(self.models_path,name)+'.h5'
-
-    def save(self, name):
+    
+    def save(self, name): 
         save_model(self.model, self.get_model_path(name))
         if hasattr(self, 'swa_model'): save_model(self.swa_model, self.get_model_path(name)[:-3]+'-swa.h5')
-
-    def load(self, name):
+                       
+    def load(self, name): 
         load_model(self.model, self.get_model_path(name))
         if hasattr(self, 'swa_model'): load_model(self.swa_model, self.get_model_path(name)[:-3]+'-swa.h5')
 
@@ -125,7 +125,7 @@ class Learner():
         self.model.float()
 
     def fit_gen(self, model, data, layer_opt, n_cycle, cycle_len=None, cycle_mult=1, cycle_save_name=None, best_save_name=None,
-                use_clr=None, use_clr_beta=None, metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False,
+                use_clr=None, use_clr_beta=None, metrics=None, callbacks=None, use_wd_sched=False, norm_wds=False,             
                 wds_sched_mult=None, use_swa=False, swa_start=1, swa_eval_freq=5, **kwargs):
 
         """Method does some preparation before finally delegating to the 'fit' method for
@@ -175,17 +175,17 @@ class Learner():
                 strength. This function is passed the WeightDecaySchedule object. And example
                 function that can be passed is:
                             f = lambda x: np.array(x.layer_opt.lrs) / x.init_lrs
-
+                            
             use_swa (bool, optional): when this is set to True, it will enable the use of
                 Stochastic Weight Averaging (https://arxiv.org/abs/1803.05407). The learner will
-                include an additional model (in the swa_model attribute) for keeping track of the
+                include an additional model (in the swa_model attribute) for keeping track of the 
                 average weights as described in the paper. All testing of this technique so far has
                 been in image classification, so use in other contexts is not guaranteed to work.
-
+                
             swa_start (int, optional): if use_swa is set to True, then this determines the epoch
                 to start keeping track of the average weights. It is 1-indexed per the paper's
                 conventions.
-
+                
             swa_eval_freq (int, optional): if use_swa is set to True, this determines the frequency
                 at which to evaluate the performance of the swa_model. This evaluation can be costly
                 for models using BatchNorm (requiring a full pass through the data), which is why the
@@ -245,12 +245,10 @@ class Learner():
         n_epoch = int(sum_geom(cycle_len if cycle_len else 1, cycle_mult, n_cycle))
         return fit(model, data, n_epoch, layer_opt.opt, self.crit,
             metrics=metrics, callbacks=callbacks, reg_fn=self.reg_fn, clip=self.clip, fp16=self.fp16,
-            swa_model=self.swa_model if use_swa else None, swa_start=swa_start,
+            swa_model=self.swa_model if use_swa else None, swa_start=swa_start, 
             swa_eval_freq=swa_eval_freq, **kwargs)
 
-    def get_layer_groups(self):
-        print(type(self.models))
-        return self.models.get_layer_groups()
+    def get_layer_groups(self): return self.models.get_layer_groups()
 
     def get_layer_opt(self, lrs, wds):
 
@@ -416,7 +414,7 @@ class Learner():
         preds2 = [predict_with_targs(self.model, dl2)[0] for i in tqdm(range(n_aug), leave=False)]
         return np.stack(preds1+preds2), targs
 
-    def fit_opt_sched(self, phases, cycle_save_name=None, best_save_name=None, stop_div=False, data_list=None, callbacks=None,
+    def fit_opt_sched(self, phases, cycle_save_name=None, best_save_name=None, stop_div=False, data_list=None, callbacks=None, 
                       cut = None, use_swa=False, swa_start=1, swa_eval_freq=5, **kwargs):
         """Wraps us the content of phases to send them to model.fit(..)
 
@@ -433,9 +431,9 @@ class Learner():
             kwargs: other arguments
             use_swa (bool, optional): when this is set to True, it will enable the use of
                 Stochastic Weight Averaging (https://arxiv.org/abs/1803.05407). The learner will
-                include an additional model (in the swa_model attribute) for keeping track of the
+                include an additional model (in the swa_model attribute) for keeping track of the 
                 average weights as described in the paper. All testing of this technique so far has
-                been in image classification, so use in other contexts is not guaranteed to work.
+                been in image classification, so use in other contexts is not guaranteed to work. 
             swa_start (int, optional): if use_swa is set to True, then this determines the epoch
                 to start keeping track of the average weights. It is 1-indexed per the paper's
                 conventions.
@@ -450,7 +448,7 @@ class Learner():
         if callbacks is None: callbacks=[]
         layer_opt = LayerOptimizer(phases[0].opt_fn, self.get_layer_groups(), 1e-2, phases[0].wds)
         if len(data_list) == 0: nb_batches = [len(self.data.trn_dl)] * len(phases)
-        else: nb_batches = [len(data.trn_dl) for data in data_list]
+        else: nb_batches = [len(data.trn_dl) for data in data_list] 
         self.sched = OptimScheduler(layer_opt, phases, nb_batches, stop_div)
         callbacks.append(self.sched)
         metrics = self.metrics
@@ -464,7 +462,7 @@ class Learner():
         if len(data_list)==0: data_list = [self.data]
         return fit(self.model, data_list, n_epochs,layer_opt, self.crit,
             metrics=metrics, callbacks=callbacks, reg_fn=self.reg_fn, clip=self.clip, fp16=self.fp16,
-            swa_model=self.swa_model if use_swa else None, swa_start=swa_start,
+            swa_model=self.swa_model if use_swa else None, swa_start=swa_start, 
             swa_eval_freq=swa_eval_freq, **kwargs)
 
     def _get_crit(self, data): return F.mse_loss
