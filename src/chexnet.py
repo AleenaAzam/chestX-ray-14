@@ -42,8 +42,8 @@ class ChexNet(nn.Module):
         self.head = nn.Sequential(nn.AdaptiveAvgPool2d(1),
                                  Flatten(),
                                  nn.Linear(1024, 14))
-        path = Path('/home/dattran/data/xray-thesis/chestX-ray14/models')
-        state_dict = torch.load(path/model_name/'best.h5')
+        path = Path('/content/drive/My Drive/SRP/Project/chestX-ray-14')
+        state_dict = torch.load(path/model_name/'chexnet.h5')
         self.load_state_dict(state_dict)
 
     def load_pretrained(self, torch=False):
